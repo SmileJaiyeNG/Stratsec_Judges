@@ -1,4 +1,4 @@
-import streamlit as st # type: ignore
+import streamlit as st
 
 # Sample task data for departments
 departments = {
@@ -48,11 +48,11 @@ departments = {
 judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 
 # Admin password for authentication
-ADMIN_PASSWORD = "mummygo_of_mtn"
+ADMIN_PASSWORD = "mummygo_ofmtn"
 
 # Initialize session state for storing scores and admin check
 if "scores" not in st.session_state:
-    st.session_state.scores = {judge: None for judge in judges}
+    st.session_state.scores = {judge: {department: None for department in departments} for judge in judges}
 
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
@@ -82,26 +82,31 @@ if department_name:
     st.write(departments[department_name]["objective"])
 
     # Scoring (simplified for judges)
-    st.subheader("Judges, please score the performance of this department (1 to 5):")
+    st.subheader("Judges, please rate the performance of this department (1 to 5):")
 
-    # Loop through the judges and ask each one to provide a score
+    # Loop through the judges and ask each one to provide a score for this department
     for judge in judges:
-        # Check if the judge has already submitted a score
-        if st.session_state.scores[judge] is None:
-            score = st.slider(f"Rate the performance by {judge}", 1, 5, key=judge)
-            st.session_state.scores[judge] = score  # Store the score in session state
+        # Check if the judge has already submitted a score for this department
+        if st.session_state.scores[judge][department_name] is None:
+            score = st.slider(f"{judge} - Rate the performance of {department_name}", 1, 5, key=f"{judge}_{department_name}")
+            st.session_state.scores[judge][department_name] = score  # Store the score in session state
         else:
-            st.write(f"{judge} has already submitted a score of {st.session_state.scores[judge]}")
+            st.write(f"{judge} has already submitted a score of {st.session_state.scores[judge][department_name]} for {department_name}")
 
-    # Optionally, calculate and show the average score
-    if all(score is not None for score in st.session_state.scores.values()):
-        avg_score = sum(st.session_state.scores.values()) / len(st.session_state.scores)
-        st.subheader(f"Average Score: {avg_score:.2f}")
+    # Optionally, calculate and show the average score for this department
+    if all(st.session_state.scores[judge][department_name] is not None for judge in judges):
+        avg_score = sum(st.session_state.scores[judge][department_name] for judge in judges) / len(judges)
+        st.subheader(f"Average Score for {department_name}: {avg_score:.2f}")
     else:
-        st.write("Not all judges have submitted their scores yet.")
+        st.write(f"Not all judges have submitted their scores for {department_name} yet.")
 
-    # Display the scores (admin can see all scores)
-    if st.session_state.is_admin:
-        st.subheader("Scores (Visible to Admin only):")
+# Display the scores (admin can see all scores)
+if st.session_state.is_admin:
+    st.subheader("Scores (Visible to Admin only):")
+    for department_name in departments:
+        st.write(f"Scores for {department_name}:")
         for judge, score in st.session_state.scores.items():
-            st.write(f"{judge}: {score}" if score is not None else f"{judge}: No score submitted")
+            judge_score = score[department_name]
+            st.write(f"{judge}: {judge_score}" if judge_score is not None else f"{judge}: No score submitted")
+        avg_score = sum(st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None) / len(judges)
+        st.write(f"Average Score for {department_name}: {avg_score:.2f}")
