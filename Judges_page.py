@@ -48,7 +48,7 @@ departments = {
 judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 
 # Admin password for authentication
-ADMIN_PASSWORD = "mummygo_ofmtn"
+ADMIN_PASSWORD = "mummygo1ofmtn"
 
 # Initialize session state for storing scores and admin check
 if "scores" not in st.session_state:
@@ -93,10 +93,10 @@ if department_name:
         else:
             st.write(f"{judge} has already submitted a score of {st.session_state.scores[judge][department_name]} for {department_name}")
 
-    # Optionally, calculate and show the average score for this department
+    # Optionally, sum the total score for this department
     if all(st.session_state.scores[judge][department_name] is not None for judge in judges):
-        avg_score = sum(st.session_state.scores[judge][department_name] for judge in judges) / len(judges)
-        st.subheader(f"Average Score for {department_name}: {avg_score:.2f}")
+        total_score = sum(st.session_state.scores[judge][department_name] for judge in judges)
+        st.subheader(f"Total Score for {department_name}: {total_score}")
     else:
         st.write(f"Not all judges have submitted their scores for {department_name} yet.")
 
@@ -105,8 +105,8 @@ if st.session_state.is_admin:
     st.subheader("Scores (Visible to Admin only):")
     for department_name in departments:
         st.write(f"Scores for {department_name}:")
+        total_score = sum(st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None)
+        st.write(f"Total Score for {department_name}: {total_score}")
         for judge, score in st.session_state.scores.items():
             judge_score = score[department_name]
             st.write(f"{judge}: {judge_score}" if judge_score is not None else f"{judge}: No score submitted")
-        avg_score = sum(st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None) / len(judges)
-        st.write(f"Average Score for {department_name}: {avg_score:.2f}")
