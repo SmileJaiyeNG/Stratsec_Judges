@@ -90,29 +90,31 @@ if department_name:
         if st.session_state.scores[judge][department_name] is None:
             score = st.slider(f"{judge} - Rate the performance of {department_name}", 1, 5, key=f"{judge}_{department_name}")
             st.session_state.scores[judge][department_name] = score  # Store the score in session state
-        else:
-            st.write(f"{judge} has already submitted a score of {st.session_state.scores[judge][department_name]} for {department_name}")
 
-    # Optionally, sum the total score for this department
-    if all(st.session_state.scores[judge][department_name] is not None for judge in judges):
-        total_score = sum(
-            st.session_state.scores[judge][department_name] 
-            for judge in judges if st.session_state.scores[judge][department_name] is not None
-        )
+    # Calculate and display the total score for this department (updated as judges submit scores)
+    department_scores = [st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None]
+    if department_scores:
+        total_score = sum(department_scores)
         st.subheader(f"Total Score for {department_name}: {total_score}")
     else:
         st.write(f"Not all judges have submitted their scores for {department_name} yet.")
 
-# Display the scores (admin can see all scores)
+# Display the scores (admin can see all scores as judges make them)
 if st.session_state.is_admin:
     st.subheader("Scores (Visible to Admin only):")
     for department_name in departments:
         st.write(f"Scores for {department_name}:")
-        total_score = sum(
-            st.session_state.scores[judge][department_name]
-            for judge in judges if st.session_state.scores[judge][department_name] is not None
-        )
-        st.write(f"Total Score for {department_name}: {total_score}")
-        for judge, score in st.session_state.scores.items():
-            judge_score = score[department_name]
-            st.write(f"{judge}: {judge_score}" if judge_score is not None else f"{judge}: No score submitted")
+        
+        # Calculate the total score for this department
+        department_scores = [st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None]
+        if department_scores:
+            total_score = sum(department_scores)
+            st.write(f"Total Score for {department_name}: {total_score}")
+
+        # Display each judge's score for the department (even as they submit it)
+        for judge in judges:
+            judge_score = st.session_state.scores[judge][department_name]
+            if judge_score is not None:
+                st.write(f"{judge}: {judge_score}")
+            else:
+                st.write(f"{judge}: No score submitted yet")
