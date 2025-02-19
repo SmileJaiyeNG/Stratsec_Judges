@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st # type: ignore
 
 # Sample task data for departments
 departments = {
@@ -110,6 +110,8 @@ if st.session_state.is_admin:
         if department_scores:
             total_score = sum(department_scores)
             st.write(f"Total Score for {department_name}: {total_score}")
+        else:
+            st.write(f"Total Score for {department_name}: Not yet available")
 
         # Display each judge's score for the department (even as they submit it)
         for judge in judges:
