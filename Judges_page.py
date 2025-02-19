@@ -95,7 +95,10 @@ if department_name:
 
     # Optionally, sum the total score for this department
     if all(st.session_state.scores[judge][department_name] is not None for judge in judges):
-        total_score = sum(st.session_state.scores[judge][department_name] for judge in judges)
+        total_score = sum(
+            st.session_state.scores[judge][department_name] 
+            for judge in judges if st.session_state.scores[judge][department_name] is not None
+        )
         st.subheader(f"Total Score for {department_name}: {total_score}")
     else:
         st.write(f"Not all judges have submitted their scores for {department_name} yet.")
@@ -105,7 +108,10 @@ if st.session_state.is_admin:
     st.subheader("Scores (Visible to Admin only):")
     for department_name in departments:
         st.write(f"Scores for {department_name}:")
-        total_score = sum(st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None)
+        total_score = sum(
+            st.session_state.scores[judge][department_name]
+            for judge in judges if st.session_state.scores[judge][department_name] is not None
+        )
         st.write(f"Total Score for {department_name}: {total_score}")
         for judge, score in st.session_state.scores.items():
             judge_score = score[department_name]
