@@ -1,4 +1,4 @@
-import streamlit as st  # type: ignore
+import streamlit as st
 
 # Sample task data for departments
 departments = {
@@ -48,72 +48,71 @@ departments = {
 judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 
 # Admin password for authentication
-ADMIN_PASSWORD = "mummygo1ofmtn"
+ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
-# Initialize session state for storing scores and admin check
+# Initialize session state for storing scores
 if "scores" not in st.session_state:
     st.session_state.scores = {judge: {department: None for department in departments} for judge in judges}
 
-if "is_admin" not in st.session_state:
-    st.session_state.is_admin = False
+# Function to calculate total score
+def calculate_total_score(department):
+    department_scores = [st.session_state.scores[judge][department] for judge in judges if st.session_state.scores[judge][department] is not None]
+    if department_scores:
+        return sum(department_scores)
+    return None
 
-# Admin password check
-admin_password = st.text_input("Enter Admin Password (If you are an admin)", type="password")
+# Admin authentication
+def authenticate_admin():
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:
+        st.session_state.is_admin = True
+        st.success("Admin authenticated successfully!")
+    else:
+        st.session_state.is_admin = False
 
-# Check if admin password is correct
-if admin_password == ADMIN_PASSWORD:
-    st.session_state.is_admin = True
+# Streamlit UI setup
+st.title("Department Tasks & Performance Scoring")
 
-# Streamlit UI: Display title
-st.title('Department Tasks & Performance Scoring')
+# Admin functionality
+authenticate_admin()
 
-# Display a dropdown to select a department
+# Select a department
 department_name = st.selectbox("Select a Department", list(departments.keys()))
 
-# Display the task, description, and objective for the selected department
 if department_name:
-    st.subheader(f"Task for {department_name}:")
-    st.write(departments[department_name]["task"])
+    # Display department details
+    st.subheader(f"Task for {department_name}: {departments[department_name]['task']}")
+    st.write(f"Description: {departments[department_name]['description']}")
+    st.write(f"Objective: {departments[department_name]['objective']}")
 
-    st.subheader("Description:")
-    st.write(departments[department_name]["description"])
-
-    st.subheader("Objective:")
-    st.write(departments[department_name]["objective"])
-
-    # Scoring (simplified for judges)
-    st.subheader("Judges, please rate the performance of this department (1 to 5):")
-
-    # Loop through the judges and ask each one to provide a score for this department
+    # Show score sliders for judges
     for judge in judges:
-        # Check if the judge has already submitted a score for this department
         if st.session_state.scores[judge][department_name] is None:
-            score = st.slider(f"{judge} - Rate the performance of {department_name}", 1, 5, key=f"{judge}_{department_name}")
+            score = st.slider(f"{judge} - Rate the performance of {department_name} (1 to 5)", 1, 5, key=f"{judge}_{department_name}")
             st.session_state.scores[judge][department_name] = score  # Store the score in session state
 
-    # Calculate and display the total score for this department (updated as judges submit scores)
-    department_scores = [st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None]
-    if department_scores:
-        total_score = sum(department_scores)
+    # Calculate and display the total score
+    total_score = calculate_total_score(department_name)
+    if total_score is not None:
         st.subheader(f"Total Score for {department_name}: {total_score}")
     else:
-        st.write(f"Not all judges have submitted their scores for {department_name} yet.")
+        st.write("Waiting for all judges to submit their scores...")
 
-# Display the scores (admin can see all scores as judges make them)
+# Admin view of all scores
 if st.session_state.is_admin:
-    st.subheader("Scores (Visible to Admin only):")
+    st.subheader("Scores for All Departments (Admin View)")
+
     for department_name in departments:
         st.write(f"Scores for {department_name}:")
         
-        # Calculate the total score for this department
-        department_scores = [st.session_state.scores[judge][department_name] for judge in judges if st.session_state.scores[judge][department_name] is not None]
-        if department_scores:
-            total_score = sum(department_scores)
-            st.write(f"Total Score for {department_name}: {total_score}")
+        # Calculate total score for the department
+        total_score = calculate_total_score(department_name)
+        if total_score is not None:
+            st.write(f"Total Score: {total_score}")
         else:
-            st.write(f"Total Score for {department_name}: Not yet available")
-
-        # Display each judge's score for the department (even as they submit it)
+            st.write("Total Score: Not yet available")
+        
+        # Show individual scores from judges
         for judge in judges:
             judge_score = st.session_state.scores[judge][department_name]
             if judge_score is not None:
