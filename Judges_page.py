@@ -64,7 +64,7 @@ def calculate_total_score(department):
 # Admin authentication
 def authenticate_admin():
     password = st.text_input("Enter Admin Password", type="password")
-    if password == ADMIN_PASSWORD:
+    if password == ADMN_PASSWORD:
         st.session_state.is_admin = True
         st.success("Admin authenticated successfully!")
     else:
@@ -87,9 +87,8 @@ if department_name:
 
     # Show score sliders for judges
     for judge in judges:
-        if st.session_state.scores[judge][department_name] is None:
-            score = st.slider(f"{judge} - Rate the performance of {department_name} (1 to 5)", 1, 5, key=f"{judge}_{department_name}")
-            st.session_state.scores[judge][department_name] = score  # Store the score in session state
+        score = st.slider(f"{judge} - Rate the performance of {department_name} (1 to 5)", 1, 5, key=f"{judge}_{department_name}")
+        st.session_state.scores[judge][department_name] = score  # Store the score in session state
 
     # Calculate and display the total score
     total_score = calculate_total_score(department_name)
@@ -99,7 +98,7 @@ if department_name:
         st.write("Waiting for all judges to submit their scores...")
 
 # Admin view of all scores
-if st.session_state.is_admin:
+if st.session_state.get("is_admin", False):
     st.subheader("Scores for All Departments (Admin View)")
 
     for department_name in departments:
