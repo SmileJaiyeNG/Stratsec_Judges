@@ -133,11 +133,15 @@ if department_name:
                     st.session_state.scores[judge][department_name] = score
                     st.session_state.submitted[judge][department_name] = True
                     st.success(f"Score submitted by {judge}!")
+                    # Recalculate total score after submission
+                    st.session_state.total_score = calculate_total_score(department_name)
 
     # Calculate and display the total score
-    total_score = calculate_total_score(department_name)
-    if total_score is not None:
-        st.subheader(f"Total Score for {department_name}: {total_score}")
+    if "total_score" not in st.session_state:
+        st.session_state.total_score = calculate_total_score(department_name)
+    
+    if st.session_state.total_score is not None:
+        st.subheader(f"Total Score for {department_name}: {st.session_state.total_score}")
     else:
         st.write("Waiting for all judges to submit their scores...")
 
