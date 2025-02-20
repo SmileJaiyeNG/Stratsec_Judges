@@ -117,24 +117,24 @@ if department_name:
     st.write(f"**Objective:** {departments[department_name]['objective']}")
     st.markdown("---")
 
-    # Show score sliders for judges
-    for judge in judges:
-        col1, col2 = st.columns([3, 1])
-        with col1:
+    # Judge selection
+    judge_name = st.selectbox("Select Your Name", judges)
+
+    # Show score slider and submit button for the selected judge
+    if judge_name:
+        if st.session_state.submitted[judge_name][department_name]:
+            st.write("✅ You have already submitted your score for this department.")
+        else:
             score = st.slider(
-                f"{judge} - Rate the performance of {department_name} (1 to 5)",
-                1, 5, key=f"{judge}_{department_name}"
+                f"Rate the performance of {department_name} (1 to 5)",
+                1, 5, key=f"{judge_name}_{department_name}"
             )
-        with col2:
-            if st.session_state.submitted[judge][department_name]:
-                st.write("✅ Submitted")
-            else:
-                if st.button(f"Submit Score ({judge})", key=f"submit_{judge}_{department_name}"):
-                    st.session_state.scores[judge][department_name] = score
-                    st.session_state.submitted[judge][department_name] = True
-                    st.success(f"Score submitted by {judge}!")
-                    # Recalculate total score after submission
-                    st.session_state.total_score = calculate_total_score(department_name)
+            if st.button("Submit Score"):
+                st.session_state.scores[judge_name][department_name] = score
+                st.session_state.submitted[judge_name][department_name] = True
+                st.success("Score submitted successfully!")
+                # Recalculate total score after submission
+                st.session_state.total_score = calculate_total_score(department_name)
 
     # Calculate and display the total score
     if "total_score" not in st.session_state:
@@ -144,6 +144,15 @@ if department_name:
         st.subheader(f"Total Score for {department_name}: {st.session_state.total_score}")
     else:
         st.write("Waiting for all judges to submit their scores...")
+
+    # Reset button for admin
+    if st.session_state.get("is_admin", False):
+        if st.button("Reset Scores for This Department"):
+            for judge in judges:
+                st.session_state.scores[judge][department_name] = None
+                st.session_state.submitted[judge][department_name] = False
+            st.session_state.total_score = None
+            st.success("Scores reset successfully!")
 
 # Admin view of all scores
 if st.session_state.get("is_admin", False):
