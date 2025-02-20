@@ -1,5 +1,33 @@
 import streamlit as st
 
+# Custom CSS for styling
+st.markdown(
+    """
+    <style>
+    .stSlider > div > div > div > div {
+        background-color: #4CAF50;  /* Green color for slider */
+    }
+    .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
+    }
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: #4CAF50;
+    }
+    .stMarkdown p {
+        font-size: 16px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Sample task data for departments
 departments = {
     "CFO’s OFFICE": {
@@ -50,9 +78,11 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 # Admin password for authentication
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
-# Initialize session state for storing scores
+# Initialize session state for storing scores and submission status
 if "scores" not in st.session_state:
     st.session_state.scores = {judge: {department: None for department in departments} for judge in judges}
+if "submitted" not in st.session_state:
+    st.session_state.submitted = {judge: {department: False for department in departments} for judge in judges}
 
 # Function to calculate total score
 def calculate_total_score(department):
@@ -72,6 +102,7 @@ def authenticate_admin():
 
 # Streamlit UI setup
 st.title("Department Tasks & Performance Scoring")
+st.markdown("---")
 
 # Admin functionality
 authenticate_admin()
@@ -82,13 +113,26 @@ department_name = st.selectbox("Select a Department", list(departments.keys()))
 if department_name:
     # Display department details
     st.subheader(f"Task for {department_name}: {departments[department_name]['task']}")
-    st.write(f"Description: {departments[department_name]['description']}")
-    st.write(f"Objective: {departments[department_name]['objective']}")
+    st.write(f"**Description:** {departments[department_name]['description']}")
+    st.write(f"**Objective:** {departments[department_name]['objective']}")
+    st.markdown("---")
 
     # Show score sliders for judges
     for judge in judges:
-        score = st.slider(f"{judge} - Rate the performance of {department_name} (1 to 5)", 1, 5, key=f"{judge}_{department_name}")
-        st.session_state.scores[judge][department_name] = score  # Store the score in session state
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            score = st.slider(
+                f"{judge} - Rate the performance of {department_name} (1 to 5)",
+                1, 5, key=f"{judge}_{department_name}"
+            )
+        with col2:
+            if st.session_state.submitted[judge][department_name]:
+                st.write("✅ Submitted")
+            else:
+                if st.button(f"Submit Score ({judge})", key=f"submit_{judge}_{department_name}"):
+                    st.session_state.scores[judge][department_name] = score
+                    st.session_state.submitted[judge][department_name] = True
+                    st.success(f"Score submitted by {judge}!")
 
     # Calculate and display the total score
     total_score = calculate_total_score(department_name)
@@ -100,16 +144,17 @@ if department_name:
 # Admin view of all scores
 if st.session_state.get("is_admin", False):
     st.subheader("Scores for All Departments (Admin View)")
+    st.markdown("---")
 
     for department_name in departments:
-        st.write(f"Scores for {department_name}:")
+        st.write(f"### {department_name}")
         
         # Calculate total score for the department
         total_score = calculate_total_score(department_name)
         if total_score is not None:
-            st.write(f"Total Score: {total_score}")
+            st.write(f"**Total Score:** {total_score}")
         else:
-            st.write("Total Score: Not yet available")
+            st.write("**Total Score:** Not yet available")
         
         # Show individual scores from judges
         for judge in judges:
@@ -118,3 +163,4 @@ if st.session_state.get("is_admin", False):
                 st.write(f"{judge}: {judge_score}")
             else:
                 st.write(f"{judge}: No score submitted yet")
+        st.markdown("---")
