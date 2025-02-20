@@ -64,7 +64,7 @@ def calculate_total_score(department):
 # Admin authentication
 def authenticate_admin():
     password = st.text_input("Enter Admin Password", type="password")
-    if password == ADMN_PASSWORD:
+    if password == ADMIN_PASSWORD:
         st.session_state.is_admin = True
         st.success("Admin authenticated successfully!")
     else:
