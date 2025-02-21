@@ -82,23 +82,20 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
 # Initialize Firebase
-def initialize_firebase():
-    try:
-        # Load Firebase credentials from Streamlit secrets
-        firebase_credentials = st.secrets["firebase_credentials"]
-        cred = credentials.Certificate(firebase_credentials)
+try:
+    if not firebase_admin._apps:
+        st.write("Initializing Firebase...")
+        cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
         firebase_admin.initialize_app(cred)
-        db = firestore.client()
-        return db
-    except FirebaseError as e:
-        st.error(f"Firebase initialization failed: {e}")
-        raise
-    except Exception as e:
-        st.error(f"Unexpected error occurred during Firebase initialization: {e}")
-        raise
-
-# Initialize Firestore client
-db = initialize_firebase()
+        st.write("Firebase initialized successfully!")
+    db = firestore.client()
+    st.write("Firestore client created successfully!")
+except FirebaseError as e:
+    st.error(f"Firebase initialization failed: {e}")
+except FileNotFoundError:
+    st.error("Firebase key file not found. Please ensure 'firebase-key.json' is in the correct directory.")
+except Exception as e:
+    st.error(f"An unexpected error occurred: {e}")
 
 # Function to save scores to Firebase
 def save_scores():
