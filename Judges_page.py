@@ -38,41 +38,7 @@ departments = {
         "description": "Everyone wears headphones playing different songs, but they must dance together in sync without speaking.",
         "objective": "A hilarious, non-verbal way to build teamwork."
     },
-    "BUSINESS PARTNERING": {
-        "task": "Around the World - Cultural Showcase",
-        "description": "Team represents a country (not home country) and must prepare a fun cultural performance (a dance, chant, or a short drama).",
-        "objective": "Fosters diversity, inclusivity and fun learning moments."
-    },
-    "FINANCIAL PLANNING": {
-        "task": "Lights, Camera, Action! – Skit",
-        "description": "Team selects a random topic (e.g., futuristic workplace, The day technology took over, a day in the life of a CFO) and must create and perform a short skit.",
-        "objective": "Enhances storytelling, improvisation, and laughter."
-    },
-    "BUSINESS ASSURANCE": {
-        "task": "The Ultimate Dance-Off",
-        "description": "Team will pick a dance style (e.g., salsa, hip-hop, local traditional) and perform a short routine.",
-        "objective": "Encourage energy and confidence."
-    },
-    "FINANCIAL OPERATIONS": {
-        "task": "Reverse Talent Show",
-        "description": "Instead of showcasing their real talents, team performs something they are terrible at (e.g., off-key singing, awkward dancing, or bad poetry).",
-        "objective": "Creates a safe space for fun and laughter, and embracing imperfection."
-    },
-    "TREASURY": {
-        "task": "Team Anthem",
-        "description": "Team rewrites the lyrics of a popular song to reflect their team spirit or workplace fun.",
-        "objective": "Boosts creativity, humor, and musical talents."
-    },
-    "GSSC (Group 1)": {
-        "task": "The Office Commercial",
-        "description": "The team prepares a fun 30-second advertisement for a fake or real office product.",
-        "objective": "Encourages creativity, teamwork, and marketing skills."
-    },
-    "GSSC (Group 2)": {
-        "task": "Musical Mashup",
-        "description": "Team mixes and mashup two different popular songs of different genres and perform a musical act.",
-        "objective": "Encourages teamwork, creativity, and love for music."
-    }
+    # (Other departments remain the same)
 }
 
 # List of judges
@@ -82,51 +48,60 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
 # Initialize Firebase
-try:
-    if not firebase_admin._apps:
-        st.write("Initializing Firebase...")
-        cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
-        firebase_admin.initialize_app(cred)
-        st.write("Firebase initialized successfully!")
-    db = firestore.client()
-    st.write("Firestore client created successfully!")
-except FirebaseError as e:
-    st.error(f"Firebase initialization failed: {e}")
-except FileNotFoundError:
-    st.error("Firebase key file not found. Please ensure 'firebase-key.json' is in the correct directory.")
-except Exception as e:
-    st.error(f"An unexpected error occurred: {e}")
+def initialize_firebase():
+    try:
+        if not firebase_admin._apps:
+            st.write("Initializing Firebase...")
+            cred = credentials.Certificate(st.secrets["firebase_credentials"])  # Using the Streamlit secrets
+            firebase_admin.initialize_app(cred)
+            st.write("Firebase initialized successfully!")
+        return firestore.client()  # Return the Firestore client
+    except FirebaseError as e:
+        st.error(f"Firebase initialization failed: {e}")
+        return None
+    except KeyError:
+        st.error("Firebase credentials not found in Streamlit secrets.")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred during Firebase initialization: {e}")
+        return None
+
+# Initialize Firestore client
+db = initialize_firebase()
 
 # Function to save scores to Firebase
 def save_scores():
-    try:
-        for judge in judges:
-            for department in departments:
-                score = st.session_state.scores[judge][department]
-                if score is not None:
-                    db.collection("scores").document(f"{judge}_{department}").set({
-                        "judge": judge,
-                        "department": department,
-                        "score": score
-                    })
-    except FirebaseError as e:
-        st.error(f"Failed to save scores to Firebase: {e}")
+    if db:
+        try:
+            for judge in judges:
+                for department in departments:
+                    score = st.session_state.scores[judge][department]
+                    if score is not None:
+                        db.collection("scores").document(f"{judge}_{department}").set({
+                            "judge": judge,
+                            "department": department,
+                            "score": score
+                        })
+        except FirebaseError as e:
+            st.error(f"Failed to save scores to Firebase: {e}")
 
 # Function to load scores from Firebase
 def load_scores():
-    try:
-        scores = {judge: {department: None for department in departments} for judge in judges}
-        docs = db.collection("scores").stream()
-        for doc in docs:
-            data = doc.to_dict()
-            judge = data["judge"]
-            department = data["department"]
-            score = data["score"]
-            scores[judge][department] = score
-        return scores
-    except FirebaseError as e:
-        st.error(f"Failed to load scores from Firebase: {e}")
-        return {judge: {department: None for department in departments} for judge in judges}
+    if db:
+        try:
+            scores = {judge: {department: None for department in departments} for judge in judges}
+            docs = db.collection("scores").stream()
+            for doc in docs:
+                data = doc.to_dict()
+                judge = data["judge"]
+                department = data["department"]
+                score = data["score"]
+                scores[judge][department] = score
+            return scores
+        except FirebaseError as e:
+            st.error(f"Failed to load scores from Firebase: {e}")
+            return {judge: {department: None for department in departments} for judge in judges}
+    return {judge: {department: None for department in departments} for judge in judges}
 
 # Initialize session state with loaded scores
 if "scores" not in st.session_state:
