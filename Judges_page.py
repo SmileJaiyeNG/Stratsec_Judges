@@ -86,10 +86,14 @@ if "submitted" not in st.session_state:
 
 # Function to calculate total score
 def calculate_total_score(department):
-    department_scores = [st.session_state.scores[judge][department] for judge in judges if st.session_state.scores[judge][department] is not None]
-    if department_scores:
+    department_scores = [
+        st.session_state.scores[judge][department]
+        for judge in judges
+        if st.session_state.scores[judge][department] is not None
+    ]
+    if department_scores:  # Check if there are any valid scores
         return sum(department_scores)
-    return None
+    return None  # Return None if no scores are available
 
 # Admin authentication
 def authenticate_admin():
@@ -145,6 +149,11 @@ if department_name:
         st.subheader(f"Total Score for {department_name}: {st.session_state.total_score}")
     else:
         st.write("Waiting for all judges to submit their scores...")
+
+    # Debug: Display raw scores
+    st.write("### Debug: Raw Scores")
+    for judge in judges:
+        st.write(f"{judge}: {st.session_state.scores[judge][department_name]}")
 
     # Reset button for admin
     if st.session_state.get("is_admin", False):
