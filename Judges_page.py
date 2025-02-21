@@ -1,4 +1,6 @@
 import streamlit as st
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 # Custom CSS for styling
 st.markdown(
@@ -78,9 +80,41 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 # Admin password for authentication
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
-# Initialize session state for storing scores and submission status
+# Initialize Firebase
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
+    firebase_admin.initialize_app(cred)
+
+# Get Firestore client
+db = firestore.client()
+
+# Function to save scores to Firebase
+def save_scores():
+    for judge in judges:
+        for department in departments:
+            score = st.session_state.scores[judge][department]
+            if score is not None:
+                db.collection("scores").document(f"{judge}_{department}").set({
+                    "judge": judge,
+                    "department": department,
+                    "score": score
+                })
+
+# Function to load scores from Firebase
+def load_scores():
+    scores = {judge: {department: None for department in departments} for judge in judges}
+    docs = db.collection("scores").stream()
+    for doc in docs:
+        data = doc.to_dict()
+        judge = data["judge"]
+        department = data["department"]
+        score = data["score"]
+        scores[judge][department] = score
+    return scores
+
+# Initialize session state with loaded scores
 if "scores" not in st.session_state:
-    st.session_state.scores = {judge: {department: None for department in departments} for judge in judges}
+    st.session_state.scores = load_scores()
 if "submitted" not in st.session_state:
     st.session_state.submitted = {judge: {department: False for department in departments} for judge in judges}
 
@@ -91,9 +125,9 @@ def calculate_total_score(department):
         for judge in judges
         if st.session_state.scores[judge][department] is not None
     ]
-    if department_scores:  # Check if there are any valid scores
+    if department_scores:
         return sum(department_scores)
-    return None  # Return None if no scores are available
+    return None
 
 # Admin authentication
 def authenticate_admin():
@@ -137,8 +171,7 @@ if department_name:
                 st.session_state.scores[judge_name][department_name] = score
                 st.session_state.submitted[judge_name][department_name] = True
                 st.success("Score submitted successfully!")
-                # Recalculate total score after submission
-                st.session_state.total_score = calculate_total_score(department_name)
+                save_scores()  # Save scores to Firebase
                 st.experimental_rerun()  # Force re-render
 
     # Calculate and display the total score
@@ -150,11 +183,6 @@ if department_name:
     else:
         st.write("Waiting for all judges to submit their scores...")
 
-    # Debug: Display raw scores
-    st.write("### Debug: Raw Scores")
-    for judge in judges:
-        st.write(f"{judge}: {st.session_state.scores[judge][department_name]}")
-
     # Reset button for admin
     if st.session_state.get("is_admin", False):
         if st.button("Reset Scores for This Department"):
@@ -163,6 +191,7 @@ if department_name:
                 st.session_state.submitted[judge][department_name] = False
             st.session_state.total_score = None
             st.success("Scores reset successfully!")
+            save_scores()  # Save scores to Firebase
             st.experimental_rerun()  # Force re-render
 
 # Admin view of all scores
