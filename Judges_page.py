@@ -135,6 +135,7 @@ if department_name:
                 st.success("Score submitted successfully!")
                 # Recalculate total score after submission
                 st.session_state.total_score = calculate_total_score(department_name)
+                st.experimental_rerun()  # Force re-render
 
     # Calculate and display the total score
     if "total_score" not in st.session_state:
@@ -153,6 +154,7 @@ if department_name:
                 st.session_state.submitted[judge][department_name] = False
             st.session_state.total_score = None
             st.success("Scores reset successfully!")
+            st.experimental_rerun()  # Force re-render
 
 # Admin view of all scores
 if st.session_state.get("is_admin", False):
