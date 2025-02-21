@@ -1,6 +1,7 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
+from firebase_admin.exceptions import FirebaseError
 
 # Custom CSS for styling
 st.markdown(
@@ -81,36 +82,48 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
 # Initialize Firebase
-if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
-    firebase_admin.initialize_app(cred)
-
-# Get Firestore client
-db = firestore.client()
+try:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+except FirebaseError as e:
+    st.error(f"Firebase initialization failed: {e}")
+except FileNotFoundError:
+    st.error("Firebase key file not found. Please ensure 'firebase-key.json' is in the correct directory.")
+except Exception as e:
+    st.error(f"An unexpected error occurred: {e}")
 
 # Function to save scores to Firebase
 def save_scores():
-    for judge in judges:
-        for department in departments:
-            score = st.session_state.scores[judge][department]
-            if score is not None:
-                db.collection("scores").document(f"{judge}_{department}").set({
-                    "judge": judge,
-                    "department": department,
-                    "score": score
-                })
+    try:
+        for judge in judges:
+            for department in departments:
+                score = st.session_state.scores[judge][department]
+                if score is not None:
+                    db.collection("scores").document(f"{judge}_{department}").set({
+                        "judge": judge,
+                        "department": department,
+                        "score": score
+                    })
+    except FirebaseError as e:
+        st.error(f"Failed to save scores to Firebase: {e}")
 
 # Function to load scores from Firebase
 def load_scores():
-    scores = {judge: {department: None for department in departments} for judge in judges}
-    docs = db.collection("scores").stream()
-    for doc in docs:
-        data = doc.to_dict()
-        judge = data["judge"]
-        department = data["department"]
-        score = data["score"]
-        scores[judge][department] = score
-    return scores
+    try:
+        scores = {judge: {department: None for department in departments} for judge in judges}
+        docs = db.collection("scores").stream()
+        for doc in docs:
+            data = doc.to_dict()
+            judge = data["judge"]
+            department = data["department"]
+            score = data["score"]
+            scores[judge][department] = score
+        return scores
+    except FirebaseError as e:
+        st.error(f"Failed to load scores from Firebase: {e}")
+        return {judge: {department: None for department in departments} for judge in judges}
 
 # Initialize session state with loaded scores
 if "scores" not in st.session_state:
