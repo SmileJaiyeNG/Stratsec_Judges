@@ -84,9 +84,12 @@ ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 # Initialize Firebase
 try:
     if not firebase_admin._apps:
+        st.write("Initializing Firebase...")
         cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
         firebase_admin.initialize_app(cred)
+        st.write("Firebase initialized successfully!")
     db = firestore.client()
+    st.write("Firestore client created successfully!")
 except FirebaseError as e:
     st.error(f"Firebase initialization failed: {e}")
 except FileNotFoundError:
