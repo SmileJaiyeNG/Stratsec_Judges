@@ -2,6 +2,7 @@ import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 from firebase_admin.exceptions import FirebaseError
+import os
 
 # Custom CSS for styling
 st.markdown(
@@ -82,23 +83,29 @@ judges = ["Modupe", "Nixon", "Oluyemisi", "Samsudeen", "Atolani", "Adeola"]
 ADMIN_PASSWORD = "mummygo1ofmtn"  # Change this to a secure password
 
 # Initialize Firebase
-try:
-    if not firebase_admin._apps:
-        st.write("Initializing Firebase...")
-        cred = credentials.Certificate("firebase-key.json")  # Replace with your Firebase key file
-        firebase_admin.initialize_app(cred)
-        st.write("Firebase initialized successfully!")
-    db = firestore.client()
-    st.write("Firestore client created successfully!")
-except FirebaseError as e:
-    st.error(f"Firebase initialization failed: {e}")
-except FileNotFoundError:
-    st.error("Firebase key file not found. Please ensure 'firebase-key.json' is in the correct directory.")
-except Exception as e:
-    st.error(f"An unexpected error occurred: {e}")
+def initialize_firebase():
+    try:
+        if not firebase_admin._apps:
+            st.write("Initializing Firebase...")
+            # Make sure the key file exists
+            firebase_key_path = "firebase-key.json"  # Replace with your Firebase key file
+            if not os.path.exists(firebase_key_path):
+                raise FileNotFoundError(f"Firebase key file not found at path: {firebase_key_path}")
+            cred = credentials.Certificate(firebase_key_path)
+            firebase_admin.initialize_app(cred)
+            st.write("Firebase initialized successfully!")
+        db = firestore.client()
+        return db
+    except FirebaseError as e:
+        st.error(f"Firebase initialization failed: {e}")
+    except FileNotFoundError as e:
+        st.error(str(e))
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+    return None
 
 # Function to save scores to Firebase
-def save_scores():
+def save_scores(db):
     try:
         for judge in judges:
             for department in departments:
@@ -113,7 +120,7 @@ def save_scores():
         st.error(f"Failed to save scores to Firebase: {e}")
 
 # Function to load scores from Firebase
-def load_scores():
+def load_scores(db):
     try:
         scores = {judge: {department: None for department in departments} for judge in judges}
         docs = db.collection("scores").stream()
@@ -129,107 +136,109 @@ def load_scores():
         return {judge: {department: None for department in departments} for judge in judges}
 
 # Initialize session state with loaded scores
-if "scores" not in st.session_state:
-    st.session_state.scores = load_scores()
-if "submitted" not in st.session_state:
-    st.session_state.submitted = {judge: {department: False for department in departments} for judge in judges}
+db = initialize_firebase()
+if db:
+    if "scores" not in st.session_state:
+        st.session_state.scores = load_scores(db)
+    if "submitted" not in st.session_state:
+        st.session_state.submitted = {judge: {department: False for department in departments} for judge in judges}
 
-# Function to calculate total score
-def calculate_total_score(department):
-    department_scores = [
-        st.session_state.scores[judge][department]
-        for judge in judges
-        if st.session_state.scores[judge][department] is not None
-    ]
-    if department_scores:
-        return sum(department_scores)
-    return None
+    # Function to calculate total score
+    def calculate_total_score(department):
+        department_scores = [
+            st.session_state.scores[judge][department]
+            for judge in judges
+            if st.session_state.scores[judge][department] is not None
+        ]
+        if department_scores:
+            return sum(department_scores)
+        return None
 
-# Admin authentication
-def authenticate_admin():
-    password = st.text_input("Enter Admin Password", type="password")
-    if password == ADMIN_PASSWORD:
-        st.session_state.is_admin = True
-        st.success("Admin authenticated successfully!")
-    else:
-        st.session_state.is_admin = False
+    # Admin authentication
+    def authenticate_admin():
+        password = st.text_input("Enter Admin Password", type="password")
+        if password == ADMIN_PASSWORD:
+            st.session_state.is_admin = True
+            st.success("Admin authenticated successfully!")
+        else:
+            st.session_state.is_admin = False
 
-# Streamlit UI setup
-st.title("Department Tasks & Performance Scoring")
-st.markdown("---")
-
-# Admin functionality
-authenticate_admin()
-
-# Select a department
-department_name = st.selectbox("Select a Department", list(departments.keys()))
-
-if department_name:
-    # Display department details
-    st.subheader(f"Task for {department_name}: {departments[department_name]['task']}")
-    st.write(f"**Description:** {departments[department_name]['description']}")
-    st.write(f"**Objective:** {departments[department_name]['objective']}")
+    # Streamlit UI setup
+    st.title("Department Tasks & Performance Scoring")
     st.markdown("---")
 
-    # Judge selection
-    judge_name = st.selectbox("Select Your Name", judges)
+    # Admin functionality
+    authenticate_admin()
 
-    # Show score slider and submit button for the selected judge
-    if judge_name:
-        if st.session_state.submitted[judge_name][department_name]:
-            st.write("✅ You have already submitted your score for this department.")
+    # Select a department
+    department_name = st.selectbox("Select a Department", list(departments.keys()))
+
+    if department_name:
+        # Display department details
+        st.subheader(f"Task for {department_name}: {departments[department_name]['task']}")
+        st.write(f"**Description:** {departments[department_name]['description']}")
+        st.write(f"**Objective:** {departments[department_name]['objective']}")
+        st.markdown("---")
+
+        # Judge selection
+        judge_name = st.selectbox("Select Your Name", judges)
+
+        # Show score slider and submit button for the selected judge
+        if judge_name:
+            if st.session_state.submitted[judge_name][department_name]:
+                st.write("✅ You have already submitted your score for this department.")
+            else:
+                score = st.slider(
+                    f"Rate the performance of {department_name} (1 to 5)",
+                    1, 5, key=f"{judge_name}_{department_name}"
+                )
+                if st.button("Submit Score"):
+                    st.session_state.scores[judge_name][department_name] = score
+                    st.session_state.submitted[judge_name][department_name] = True
+                    st.success("Score submitted successfully!")
+                    save_scores(db)  # Save scores to Firebase
+                    st.experimental_rerun()  # Force re-render
+
+        # Calculate and display the total score
+        if "total_score" not in st.session_state:
+            st.session_state.total_score = calculate_total_score(department_name)
+        
+        if st.session_state.total_score is not None:
+            st.subheader(f"Total Score for {department_name}: {st.session_state.total_score}")
         else:
-            score = st.slider(
-                f"Rate the performance of {department_name} (1 to 5)",
-                1, 5, key=f"{judge_name}_{department_name}"
-            )
-            if st.button("Submit Score"):
-                st.session_state.scores[judge_name][department_name] = score
-                st.session_state.submitted[judge_name][department_name] = True
-                st.success("Score submitted successfully!")
-                save_scores()  # Save scores to Firebase
+            st.write("Waiting for all judges to submit their scores...")
+
+        # Reset button for admin
+        if st.session_state.get("is_admin", False):
+            if st.button("Reset Scores for This Department"):
+                for judge in judges:
+                    st.session_state.scores[judge][department_name] = None
+                    st.session_state.submitted[judge][department_name] = False
+                st.session_state.total_score = None
+                st.success("Scores reset successfully!")
+                save_scores(db)  # Save scores to Firebase
                 st.experimental_rerun()  # Force re-render
 
-    # Calculate and display the total score
-    if "total_score" not in st.session_state:
-        st.session_state.total_score = calculate_total_score(department_name)
-    
-    if st.session_state.total_score is not None:
-        st.subheader(f"Total Score for {department_name}: {st.session_state.total_score}")
-    else:
-        st.write("Waiting for all judges to submit their scores...")
-
-    # Reset button for admin
+    # Admin view of all scores
     if st.session_state.get("is_admin", False):
-        if st.button("Reset Scores for This Department"):
-            for judge in judges:
-                st.session_state.scores[judge][department_name] = None
-                st.session_state.submitted[judge][department_name] = False
-            st.session_state.total_score = None
-            st.success("Scores reset successfully!")
-            save_scores()  # Save scores to Firebase
-            st.experimental_rerun()  # Force re-render
-
-# Admin view of all scores
-if st.session_state.get("is_admin", False):
-    st.subheader("Scores for All Departments (Admin View)")
-    st.markdown("---")
-
-    for department_name in departments:
-        st.write(f"### {department_name}")
-        
-        # Calculate total score for the department
-        total_score = calculate_total_score(department_name)
-        if total_score is not None:
-            st.write(f"**Total Score:** {total_score}")
-        else:
-            st.write("**Total Score:** Not yet available")
-        
-        # Show individual scores from judges
-        for judge in judges:
-            judge_score = st.session_state.scores[judge][department_name]
-            if judge_score is not None:
-                st.write(f"{judge}: {judge_score}")
-            else:
-                st.write(f"{judge}: No score submitted yet")
+        st.subheader("Scores for All Departments (Admin View)")
         st.markdown("---")
+
+        for department_name in departments:
+            st.write(f"### {department_name}")
+            
+            # Calculate total score for the department
+            total_score = calculate_total_score(department_name)
+            if total_score is not None:
+                st.write(f"**Total Score:** {total_score}")
+            else:
+                st.write("**Total Score:** Not yet available")
+            
+            # Show individual scores from judges
+            for judge in judges:
+                judge_score = st.session_state.scores[judge][department_name]
+                if judge_score is not None:
+                    st.write(f"{judge}: {judge_score}")
+                else:
+                    st.write(f"{judge}: No score submitted yet")
+            st.markdown("---")
